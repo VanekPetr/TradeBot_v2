@@ -113,6 +113,32 @@ class TradeBot(object):
             self.dataPlot = self.__get_stat(start, end)
             self.lenTest = 0
 
+    # METHOD TO RUN MST METHOD AND PRINT RESULTS
+    def mst(self, nMST, plot):
+        # Starting subset of data for MST
+        self.subsetMST_df = self.trainDataset
+        for i in range(nMST):
+            self.subsetMST, self.subsetMST_df, self.corrMST_avg, self.PDI_MST = MinimumSpanningTree(self.subsetMST_df)
+
+        # PLOTTING RESULTS
+        if plot:
+            self.plot_dots(start= self.start, end=self.endTrainDate, ML="MST", MLsubset=self.subsetMST)
+
+    # METHOD TO RUN MST METHOD AND PRINT RESULTS
+    def clustering(self, nClusters, nAssets, plot):
+        # CLUSTER DATA
+        clusters = Cluster(self.trainDataset, nClusters=nClusters, dendogram=False)
+
+        # SELECT ASSETS
+        self.subsetCLUST, self.subsetCLUST_df = pickCluster(data=self.trainDataset,
+                                                            stat=self.dataPlot,
+                                                            ML=clusters,
+                                                            nAssets=nAssets)  # Number of assets selected from each cluster
+
+        # PLOTTING DATA
+        if plot:
+            self.plot_dots(start=self.start, end=self.endTrainDate, ML="Clustering", MLsubset=clusters)
+
 
 if __name__ == "__main__":
 
@@ -146,45 +172,15 @@ if __name__ == "__main__":
 
     # DIVIDE DATASET INTO TRAINING AND TESTING PART?
     algo.setup_data(start="2015-12-23", end="2018-08-22", train_test=True, train_ratio=0.6)
+
+    # RUN THE MINIMUM SPANNING TREE METHOD
+    algo.mst(nMST=3, plot=True)
+
+    # RUN THE CLUSTERING METHOD
+    algo.clustering(nClusters=3, nAssets=10, plot=True)
+
+
 '''
-
-
-
-# RUN THE MINIMUM SPANNING TREE METHOD
-#------------------------------------------------------------------
-nMST = 3                        # Select how many times run the MST method
-subsetMST_df = trainDataset
-for i in range(nMST):
-    subsetMST, subsetMST_df, corrMST_avg, PDI_MST = MinimumSpanningTree(subsetMST_df)
-
-# PLOT
-plotInteractive(data = dataPlot,
-                ML = "MST",
-                MLsubset = subsetMST,
-                start = startDate,
-                end = endTrainDate)
-
-
-# RUN THE CLUSTERING METHOD
-#------------------------------------------------------------------
-clusters = Cluster(trainDataset,
-                   nClusters = 3,
-                   dendogram = False)
-
-# SELECT ASSETS
-subsetCLUST, subsetCLUST_df = pickCluster(data = trainDataset,
-                                          stat = dataPlot,
-                                          ML = clusters,
-                                          nAssets = 10) #Number of assets selected from each cluster
-
-# PLOT
-plotInteractive(data = dataPlot,
-                ML = "Clustering",
-                MLsubset = clusters,
-                start = startDate,
-                end = endTrainDate)
-
-
 
 ### SCENERIO GENERATION
 

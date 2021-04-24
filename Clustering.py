@@ -13,9 +13,7 @@ from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import dendrogram, fcluster, complete
 
 
-
 # FUNCTION TO CREATE DENDOGRAM
-#------------------------------------------------------------------
 def fancy_dendrogram(*args, **kwargs):
     max_d = kwargs.pop('max_d', None)
     if max_d and 'color_threshold' not in kwargs:
@@ -41,22 +39,17 @@ def fancy_dendrogram(*args, **kwargs):
     return ddata
 
 
-"""
-    ----------------------------------------------------------------------
-    Machine Learning and Advanced Statistical Methods: CLUSTERING
-    ----------------------------------------------------------------------
-""" 
-
+# FUNCTION TO CLUSTER DATA
 def Cluster(data, nClusters, dendogram):
-    corr = data.corr(method="spearman") #calculate the correlation
-    distance_corr =1-corr #distance based on correlation
+    corr = data.corr(method="spearman")     # calculate the correlation
+    distance_corr = 1-corr                  # distance based on correlation
 
-    #person corr distance matrix
-    con_distance_corr = squareform(distance_corr) #condence the distance matrix to be able to fit the hierarcal clustering
-    complete_corr= complete(con_distance_corr) #apply hierarchial clustering using the single distance measure
+    # Person corr distance matrix
+    con_distance_corr = squareform(distance_corr)   # condence the distance matrix to be able to fit the hierarcal clustering
+    complete_corr = complete(con_distance_corr)     # apply hierarchical clustering using the single distance measure
     
     if dendogram == True:
-        #drwa the dendogram
+        # draw the dendogram
         plt.figure(figsize=(25, 10))
         fancy_dendrogram(
             complete_corr,
@@ -72,44 +65,29 @@ def Cluster(data, nClusters, dendogram):
         plt.ylabel('Distance', fontsize = 16)
         plt.show()
     
-    #And now we want to save the clustering into a dataframe.  
-    #Create the dataframe
+    # And now we want to save the clustering into a dataframe.
+    # Create the dataframe
     cluster_df = pd.DataFrame(index=distance_corr.index)
 
-    #Save the Complete_Corr clustering into the dataframe with 8 clusters
-    cluster_df["Complete_Corr"] = fcluster(complete_corr,
-                                          nClusters,
-                                          criterion="maxclust")
-
-    #Save the Return into the dataframe
-    #cluster_df["AverageRet"] = ret["AvgReturnYearly"]
-
-    #Save the Standard Deviation into the dataframe
-    #cluster_df["StandardDev"] = ret["YearlyStd"]
-
-    #Add the sharpe ratio to the dataframe
-    #cluster_df["Sharpe_Ratio"] = (ret["AvgReturnYearly"])/ret["YearlyStd"]
+    # Save the Complete_Corr clustering into the dataframe with 8 clusters
+    cluster_df["Complete_Corr"] = fcluster(complete_corr, nClusters, criterion="maxclust")
 
     # Column for plotting
     for index in cluster_df.index:
-        cluster_df.loc[index,"Cluster"]="Cluster "+str(cluster_df.loc[index,"Complete_Corr"])
+        cluster_df.loc[index,"Cluster"]="Cluster "+str(cluster_df.loc[index, "Complete_Corr"])
     
-    return(cluster_df)
+    return cluster_df
  
     
-"""
-    ----------------------------------------------------------------------
-    Machine Learning and Advanced Statistical Methods: SELECTING ASSETS FROM CLUSTERS
-    ----------------------------------------------------------------------
-"""     
+# METHOD TO PICK ASSETS FROM A CLUSTER BASED ON PERFORMANCE CRITERIA
 def pickCluster(data, stat, ML, nAssets):
     test = pd.concat([stat, ML], axis=1)
-    #For each cluster find the asset with the highest Sharpe ratio
+    # For each cluster find the asset with the highest Sharpe ratio
     ids = []
     for clus in test["Cluster"].unique():
-        #number of elements in each cluster
+        # number of elements in each cluster
         sizeMax = len(test[test["Cluster"]== str(clus)])
-        #Get indexes
+        # Get indexes
         if nAssets <= sizeMax:
             ids.extend(test[test["Cluster"]== str(clus)].nlargest(nAssets,
                             ["Sharpe Ratio"]).index)
@@ -117,11 +95,8 @@ def pickCluster(data, stat, ML, nAssets):
             ids.extend(test[test["Cluster"]== str(clus)].nlargest(sizeMax,
                             ["Sharpe Ratio"]).index)
             print("In "+str(clus)+" was picked only", sizeMax,"Assets")
-        
-    
-    #Get returns
+
+    # Get returns
     result = data[ids]
     
-    return(ids, result)
-       
-    
+    return ids, result
