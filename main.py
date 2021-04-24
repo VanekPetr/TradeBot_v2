@@ -5,7 +5,7 @@ Created on Wed Nov 11 15:50:42 2020
 """
 import numpy as np
 
-from dataAnalyser import meanRetAn, getStat, finalStat
+from dataAnalyser import meanRetAn, finalStat
 from dataGraph import plotInteractive, plotOptimization
 from MST import MinimumSpanningTree
 from Clustering import Cluster, pickCluster
@@ -53,7 +53,7 @@ class TradeBot(object):
         return statDf
 
     # METHOD TO PLOT THE OVERVIEW OF THE FINANCIAL PRODUCTS IN TERMS OF RISK AND RETURNS
-    def plot_dots(self, start, end, ML, MLsubset):
+    def plot_dots(self, start, end, ML=None, MLsubset=None):
         # Get statistics for a given time period
         data = self.__get_stat(start, end)
 
@@ -84,6 +84,35 @@ class TradeBot(object):
 
         fig.show()
 
+    # METHOD TO PREPARE DATA FOR ML AND BACKTESTING
+    def setup_data(self, start, end, train_test, train_ratio=0.5):
+        self.start = start
+        self.end = end
+        self.train_test = train_test
+
+        # Get data for a given time interval
+        data = self.weeklyReturns[(self.weeklyReturns.index > start) & (self.weeklyReturns.index < end)].copy()
+
+        # IF WE DIVIDE DATASET
+        if train_test:
+            # DIVIDE DATA INTO TRAINING AND TESTING PARTS
+            breakPoint = int(np.floor(len(data.index) * train_ratio))
+
+            # DEFINITION OF TRAINING AND TESTING DATASETS
+            self.trainDataset = data.iloc[0:breakPoint, :]
+            self.testDataset = data.iloc[breakPoint:, :]
+
+            # Get dates
+            self.endTrainDate = str(self.trainDataset.index.date[-1])
+            self.startTestDate = str(self.testDataset.index.date[0])
+
+            self.dataPlot = self.__get_stat(start, self.endTrainDate)
+            self.lenTest = len(self.testDataset.index)
+        else:
+            self.trainDataset = data
+            self.dataPlot = self.__get_stat(start, end)
+            self.lenTest = 0
+
 
 if __name__ == "__main__":
 
@@ -113,31 +142,12 @@ if __name__ == "__main__":
     algo = TradeBot(start="2015-09-23", end="2019-09-22", assets=tickers)
 
     # PLOT INTERACTIVE GRAPH
-    algo.plot_dots(start="2016-01-01", end="2018-01-01", ML=None, MLsubset=None)
+    algo.plot_dots(start="2016-01-01", end="2018-01-01")
 
+    # DIVIDE DATASET INTO TRAINING AND TESTING PART?
+    algo.setup_data(start="2015-12-23", end="2018-08-22", train_test=True, train_ratio=0.6)
 '''
-### MACHINE LEARNING
 
-# DIVIDE DATASET INTO TRAINING AND TESTING PART?
-#------------------------------------------------------------------
-divide = True
-
-# IF WE DIVIDE DATASET
-if divide != False:
-    # ONE HALF OF THE DATA, BREAKPOINT IN TRAINING AND TESTING DATASET
-    breakPoint = int(np.floor(len(weeklyReturns.index)/2))
-    # DEFINITION OF TRAINING AND TESTING DATASETS
-    trainDataset = weeklyReturns.iloc[0:breakPoint,:]
-    testDataset = weeklyReturns.iloc[breakPoint:,:]
-
-    dataPlot = getStat(data = trainDataset)
-    endTrainDate = str(trainDataset.index.date[-1])
-    startTestDate = str(testDataset.index.date[0])
-    lenTest = len(testDataset.index)
-else:
-    trainDataset = weeklyReturns
-    dataPlot = dataStat
-    lenTest = 0
 
 
 # RUN THE MINIMUM SPANNING TREE METHOD

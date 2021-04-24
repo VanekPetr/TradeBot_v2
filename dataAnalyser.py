@@ -22,32 +22,6 @@ def meanRetAn(data):
      
     return(Result)
 
-"""
-    ----------------------------------------------------------------------------------------
-    Machine Learning and Advanced Statistical Methods: GET STATISTICS BASED ON WEEKLY RETURNS 
-    ----------------------------------------------------------------------------------------- 
-"""      
-def getStat(data):
-    # TABLE WITH AVG RET AND STD OF RET
-    mu_ga = meanRetAn(data)                   #anual geometric mean
-    stdev_a = data.std(axis=0) * np.sqrt(52)   #standard deviation of Annual Returns
-    #stdev_a = annualReturns.std(axis=0)        
-
-    statDf = pd.concat([mu_ga,stdev_a], axis=1)         #table
-    statName = ["Average Annual Returns","Standard Deviation of Returns"]
-    statDf.columns = statName                           #add names
-    
-    # COMPUTE SHARPE RATIO AND ADD IT INTO THE TABLE
-    sharpe = statDf.loc[:,"Average Annual Returns"]/statDf.loc[:,"Standard Deviation of Returns"]
-    statDf = pd.concat([statDf,sharpe], axis=1)         #add sharpe ratio into the table
-    statName = ["Average Annual Returns","Standard Deviation of Returns", "Sharpe Ratio"]
-    statDf.columns = statName
-    
-    # ADD NAMES INTO THE TABLE
-    statDf["Name"] = data.columns 
-    
-    return(statDf)    
-
 
 """
     ----------------------------------------------------------------------
