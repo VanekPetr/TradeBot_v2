@@ -1,0 +1,13 @@
+pandas
+pandas-datareader
+plotly
+plotly-express
+python-dateutil
+pulp
+numpy
+networkx
+matplotlib
+sklearn
+scipy
+joblib
+pyarrow
