@@ -3,10 +3,8 @@ Created on Wed Nov 11 15:50:42 2020
 
 @author: Petr Vanek
 """
-import numpy as np
 
 from dataAnalyser import meanRetAn, finalStat
-from dataGraph import plotInteractive, plotOptimization
 from MST import MinimumSpanningTree
 from Clustering import Cluster, pickCluster
 from ScenarioGeneration import MC, BOOT
@@ -14,8 +12,13 @@ from CVaRtargets import targetsCVaR
 from CVaRmodel import modelCVaR
 
 from pandas_datareader import data
+import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
+
+pio.renderers.default = "browser"
 
 
 class TradeBot(object):
@@ -51,6 +54,36 @@ class TradeBot(object):
         statDf["Name"] = statDf.index                   # Add names into the table
 
         return statDf
+
+    # METHOD TO PLOT THE BACKTEST RESULTS
+    def __plot_backtest(self, performance, performanceBenchmark, composition, names):
+        # PERFORMANCE
+        performance.index = performance.index.date
+        df_to_plot = pd.concat([performance, performanceBenchmark], axis=1)
+        fig = px.line(df_to_plot, x=df_to_plot.index, y=df_to_plot.columns, title='Comparison of different strategies')
+        fig.show()
+
+        # COMPOSITION
+        composition.columns = list(names)
+        composition = composition.loc[:, (composition != 0).any(axis=0)]
+        data = []
+        for isin in composition.columns:
+            trace = go.Bar(
+                x=composition.index,
+                y=composition[isin],
+                name=str(isin)
+            )
+            data.append(trace)
+
+        layout = go.Layout(barmode='stack')
+        fig = go.Figure(data=data, layout=layout)
+        fig.update_layout(
+            title="Portfolio Composition",
+            xaxis_title="Number of the Investment Period",
+            yaxis_title="Composition",
+            legend_title="Name of the Fund")
+        fig.layout.yaxis.tickformat = ',.1%'
+        fig.show()
 
     # METHOD TO PLOT THE OVERVIEW OF THE FINANCIAL PRODUCTS IN TERMS OF RISK AND RETURNS
     def plot_dots(self, start, end, ML=None, MLsubset=None):
@@ -122,7 +155,7 @@ class TradeBot(object):
 
         # PLOTTING RESULTS
         if plot:
-            self.plot_dots(start= self.start, end=self.endTrainDate, ML="MST", MLsubset=self.subsetMST)
+            self.plot_dots(start=self.start, end=self.endTrainDate, ML="MST", MLsubset=self.subsetMST)
 
     # METHOD TO RUN MST METHOD AND PRINT RESULTS
     def clustering(self, nClusters, nAssets, plot):
@@ -138,6 +171,61 @@ class TradeBot(object):
         # PLOTTING DATA
         if plot:
             self.plot_dots(start=self.start, end=self.endTrainDate, ML="Clustering", MLsubset=clusters)
+
+    # METHOD TO COMPUTE THE BACKTEST
+    def backtest(self, assets, benchmark, scenarios, nSimulations, plot):
+
+        # SELECT THE WORKING SUBSET
+        if assets == 'MST':
+            subset = self.subsetMST
+        elif assets == 'Clustering':
+            subset = self.subsetCLUST
+        else:
+            subset = assets
+
+        # SCENERIO GENERATION
+        # ---------------------------------------------------------------------------------------------------
+        if scenarios == 'MonteCarlo':
+            scenarios = MC(data=self.trainDataset.loc[:, self.trainDataset.columns.isin(subset)],                      # subsetMST_df or subsetCLUST_df
+                           nSim=nSimulations,
+                           N_test=self.lenTest)
+        else:
+            scenarios = BOOT(data=self.weeklyReturns[subset],   # subsetMST or subsetCLUST
+                             nSim=nSimulations,                 # number of scenarios per period
+                             N_test=self.lenTest)
+
+        # TARGETS GENERATION
+        # ---------------------------------------------------------------------------------------------------
+        targets, benchmarkPortVal = targetsCVaR(start_date=self.start,
+                                                end_date=self.end,
+                                                test_date=self.startTestDate,
+                                                benchmark=benchmark,        # MSCI World benchmark
+                                                test_index=self.testDataset.index.date,
+                                                budget=100,
+                                                cvar_alpha=0.05)
+
+        # MATHEMATICAL MODELING
+        # ------------------------------------------------------------------
+        portAllocation, portValue, portCVaR = modelCVaR(testRet=self.testDataset[subset],
+                                                        scen=scenarios,    # Scenarios
+                                                        targets=targets,   # Target
+                                                        budget=100,
+                                                        cvar_alpha=0.05,
+                                                        trans_cost=0.001,
+                                                        max_weight=0.33)
+        # PLOTTING
+        # ------------------------------------------------------------------
+        if plot:
+            self.__plot_backtest(performance=portValue.copy(),
+                                 performanceBenchmark=benchmarkPortVal.copy(),
+                                 composition=portAllocation,
+                                 names=subset)
+
+        # RETURN STATISTICS
+        # ------------------------------------------------------------------
+        finalStat(portValue)
+        return finalStat(benchmarkPortVal)
+
 
 
 if __name__ == "__main__":
@@ -170,7 +258,7 @@ if __name__ == "__main__":
     # PLOT INTERACTIVE GRAPH
     algo.plot_dots(start="2016-01-01", end="2018-01-01")
 
-    # DIVIDE DATASET INTO TRAINING AND TESTING PART?
+    # SETUP WORKING DATASET, DIVIDE DATASET INTO TRAINING AND TESTING PART?
     algo.setup_data(start="2015-12-23", end="2018-08-22", train_test=True, train_ratio=0.6)
 
     # RUN THE MINIMUM SPANNING TREE METHOD
@@ -179,74 +267,9 @@ if __name__ == "__main__":
     # RUN THE CLUSTERING METHOD
     algo.clustering(nClusters=3, nAssets=10, plot=True)
 
-
-'''
-
-### SCENERIO GENERATION
-
-# THE BOOTSTRAPPING SCENARIO GENERATION
-#------------------------------------------------------------------
-# FOR THE MST METHOD
-BOOT_sim_MST = BOOT(data = weeklyReturns[subsetMST],    #subsetMST or subsetCLUST
-                nSim = 250,                             #number of scenarios per period
-                N_test = lenTest)
-
-
-# FOR THE CLUSTERING METHOD
-BOOT_sim_CLUST = BOOT(data = weeklyReturns[subsetCLUST],#subsetMST or subsetCLUST
-                      nSim = 250,
-                      N_test = lenTest)
-
-# THE MONTE CARLO SCENARIO GENERATION
-#------------------------------------------------------------------
-# FOR THE MST METHOD
-MC_sim_MST = MC(data = subsetMST_df,                    #subsetMST_df or subsetCLUST_df
-                nSim = 250,
-                N_test = lenTest)
-
-
-
-# FOR THE CLUSTERING METHOD
-MC_sim_CLUST = MC(data = subsetCLUST_df,                #subsetMST_df or subsetCLUST_df
-                  nSim = 250,
-                  N_test = lenTest)
-
-
-### MATHEMATICAL OPTIMIZATION
-
-# TARGETS GENERATION
-#------------------------------------------------------------------
-targets, benchmarkPortVal = targetsCVaR(start_date = startDate,
-                                        end_date = endDate,
-                                        test_date = startTestDate,
-                                        benchmark = ["URTH"],   #MSCI World benchmark
-                                        test_index = testDataset.index.date,
-                                        budget = 100,
-                                        cvar_alpha=0.05)
-
-
-# MATHEMATICAL MODELING
-#------------------------------------------------------------------
-portAllocation, portValue, portCVaR = modelCVaR(testRet = testDataset[subsetMST],
-                                                scen = MC_sim_MST,  #Scenarios
-                                                targets = targets,  #Target
-                                                budget = 100,
-                                                cvar_alpha = 0.05,
-                                                trans_cost = 0.001,
-                                                max_weight = 0.33)
-
-# PLOTTING
-#------------------------------------------------------------------
-plotOptimization(performance = portValue.copy(),
-                 performanceBenchmark = benchmarkPortVal.copy(),
-                 composition = portAllocation,
-                 names = subsetMST)
-
-
-
-# STATISTICS
-#------------------------------------------------------------------
-finalStat(portValue)
-finalStat(benchmarkPortVal)
-
-'''
+    # RUN THE BACKTEST
+    results = algo.backtest(assets='MST',
+                            benchmark=['URTH'],
+                            scenarios='Bootstrapping',
+                            nSimulations=500,
+                            plot=True)
