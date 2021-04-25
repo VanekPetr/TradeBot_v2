@@ -4,7 +4,7 @@ Created on Wed Nov 11 15:50:42 2020
 @author: Petr Vanek
 """
 
-from dataAnalyser import meanRetAn, finalStat
+from dataAnalyser import meanRetAn, finalStat, tickers
 from MST import MinimumSpanningTree
 from Clustering import Cluster, pickCluster
 from ScenarioGeneration import MC, BOOT
@@ -41,7 +41,7 @@ class TradeBot(object):
     def __get_stat(self, start, end):
 
         # ANALYZE THE DATA for a given time period
-        weeklyData = self.weeklyReturns[(self.weeklyReturns.index > start) & (self.weeklyReturns.index < end)].copy()
+        weeklyData = self.weeklyReturns[(self.weeklyReturns.index >= start) & (self.weeklyReturns.index <= end)].copy()
 
         # Create table with summary statistics
         mu_ga = meanRetAn(weeklyData)                   # Annualised geometric mean of returns
@@ -124,7 +124,7 @@ class TradeBot(object):
         self.train_test = train_test
 
         # Get data for a given time interval
-        data = self.weeklyReturns[(self.weeklyReturns.index > start) & (self.weeklyReturns.index < end)].copy()
+        data = self.weeklyReturns[(self.weeklyReturns.index >= start) & (self.weeklyReturns.index <= end)].copy()
 
         # IF WE DIVIDE DATASET
         if train_test:
@@ -223,40 +223,19 @@ class TradeBot(object):
 
         # RETURN STATISTICS
         # ------------------------------------------------------------------
-        finalStat(portValue)
-        return finalStat(benchmarkPortVal)
+        optimal_portfolio_stat = finalStat(portValue)
+        benchmark_stat = finalStat(benchmarkPortVal)
 
+        return optimal_portfolio_stat.append(benchmark_stat)
 
 
 if __name__ == "__main__":
-
-    # TICKERS OF ETFs WE ARE GOING TO WORK WITH
-    tickers = ["ANGL","ASHR","BIV","BKLN","BNDX","BOND","BRF","CGW","CMBS",
-               "CMF","CORP","CSM","CWB","DBA","DBB","DBO","DBS","DBV","DES","DGL",
-               "DGRW","DIA","DLS","DOL","DON","DSI","DXGE","DXJ","EBND","ECH","EDEN",
-               "EEM","EFV","EIDO","EIRL","ENZL","EPHE","EWD","EWG","EWH","EWI","EWL",
-               "EWM","EWN","EWQ","EWS","EWT","EWU","EWW","EWY","EZA","FBT","FCG",
-               "FCOM","FDD","FDL","FEU","FEX","FLRN","FPX","FTA","FTCS","FTSM","FXA",
-               "FXB","FXC","FXE","FXF","FXR","FXY","FXZ","GBF","GNMA","GREK","GSY",
-               "HDV","HEDJ","HEFA","HYD","HYEM","IAU","IBND","IDLV","IGE","IGN","IGV",
-               "IHI","INDA","IOO","IPE","IPFF","IQDF","ISTB","ITA","ITB","ITM","IUSV",
-               "IVOO","IVOV","IWC","IWN","IWO","IWY","IXG","IXN","IYE","IYY","IYZ",
-               "JKD","JKE","JKG","JPXN","KBWP","KOL","KRE","KXI","LTPZ","MCHI","MDYG",
-               "MDYV","MGV","MLPA","MOAT","MOO","MTUM","OIH","PALL","PCY","PDP","PEY",
-               "PFXF","PHB","PHO","PJP","PKW","PRFZ","PSCC","PSCT","PSCU","PSK","PSL",
-               "PUI","PWB","PWV","PWZ","QDF","QUAL","RDIV","REM","REZ","RFG","RING",
-               "RSX","RTH","RWJ","RWL","RWX","RXI","RYF","SCHC","SCHE","SCJ","SDIV",
-               "SDOG","SGDM","SGOL","SHM","SILJ","SIZE","SLQD","SLY","SLYG","SMLV",
-               "SNLN","SOCL","SPHQ","SPYG","TAN","TDIV","TDTT","THD","TIP","TOK","TUR",
-               "UGA","URA","URTH","USDU","VBK","VCLT","VEA","VLUE","VNM","VOE","VONE",
-               "VONG","VONV","VOT","VXF","XBI","XES","XHS","XLE","XLG","XLI","XLK",
-               "XLP","XLU","XLV","XLY","XME","XPH","XRT","XSD","XTN","ZROZ"]
 
     # INITIALIZATION OF THE CLASS
     algo = TradeBot(start="2015-09-23", end="2019-09-22", assets=tickers)
 
     # PLOT INTERACTIVE GRAPH
-    algo.plot_dots(start="2016-01-01", end="2018-01-01")
+    algo.plot_dots(start="2018-09-24", end="2019-09-01")
 
     # SETUP WORKING DATASET, DIVIDE DATASET INTO TRAINING AND TESTING PART?
     algo.setup_data(start="2015-12-23", end="2018-08-22", train_test=True, train_ratio=0.6)
@@ -268,8 +247,8 @@ if __name__ == "__main__":
     algo.clustering(nClusters=3, nAssets=10, plot=True)
 
     # RUN THE BACKTEST
-    results = algo.backtest(assets='MST',
-                            benchmark=['URTH'],
-                            scenarios='Bootstrapping',
-                            nSimulations=500,
-                            plot=True)
+    results, benchmark = algo.backtest(assets='MST',
+                                       benchmark=['URTH'],
+                                       scenarios='Bootstrapping',
+                                       nSimulations=500,
+                                       plot=True)
