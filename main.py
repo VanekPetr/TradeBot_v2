@@ -247,8 +247,8 @@ if __name__ == "__main__":
     algo.clustering(nClusters=3, nAssets=10, plot=True)
 
     # RUN THE BACKTEST
-    results, benchmark = algo.backtest(assets='MST',
-                                       benchmark=['URTH'],
-                                       scenarios='Bootstrapping',
-                                       nSimulations=500,
-                                       plot=True)
+    results = algo.backtest(assets='MST',
+                            benchmark=['URTH'],
+                            scenarios='Bootstrapping',
+                            nSimulations=500,
+                            plot=True)
